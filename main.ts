@@ -408,60 +408,108 @@ export default class ReaderHighlighterPlugin extends Plugin {
     settings: ReaderHighlighterSettings = DEFAULT_SETTINGS;
     private activePopup: HTMLElement | null = null;
     private dismissHandler: ((e: Event) => void) | null = null;
+    private selChangeTimer: ReturnType<typeof setTimeout> | null = null;
 
     async onload() {
         await this.loadSettings();
 
+        // Desktop: mouseup for instant highlight + click-on-mark popup
         this.registerDomEvent(document, "mouseup", (evt: MouseEvent) => {
-            this.handleInteraction(evt);
+            this.handleMouseUp(evt);
         });
 
+        // Mobile: touchend for tap-on-mark popup (highlight is handled by selectionchange)
         this.registerDomEvent(
             document,
             "touchend",
             (evt: TouchEvent) => {
-                setTimeout(() => this.handleInteraction(evt), 400);
+                setTimeout(() => this.handleTouchEnd(evt), 100);
             },
             { passive: true } as any
         );
+
+        // Mobile: selectionchange with debounce to detect when handle adjustment is done
+        this.registerDomEvent(document, "selectionchange", () => {
+            if (this.selChangeTimer) clearTimeout(this.selChangeTimer);
+            this.selChangeTimer = setTimeout(() => {
+                this.handleSelectionChange();
+            }, 600);
+        });
 
         this.addSettingTab(new ReaderHighlighterSettingTab(this.app, this));
     }
 
     onunload() {
         this.dismissPopup();
+        if (this.selChangeTimer) clearTimeout(this.selChangeTimer);
     }
 
-    private handleInteraction(evt: MouseEvent | TouchEvent) {
+    // Desktop: mouseup handles both highlight and mark-click popup
+    private handleMouseUp(evt: MouseEvent) {
         if (!this.settings.enabled) return;
 
         const target = evt.target;
         if (!(target instanceof HTMLElement)) return;
-
-        // If clicking inside the popup, don't process
         if (target.closest(".rh-popup")) return;
 
-        // Dismiss any existing popup
         this.dismissPopup();
 
         if (!target.closest(".markdown-preview-view")) return;
 
         const view = this.app.workspace.getActiveViewOfType(MarkdownView);
-        if (!view) return;
-        if (view.getMode() !== "preview") return;
+        if (!view || view.getMode() !== "preview") return;
 
         const sel = window.getSelection();
 
-        // If selection is collapsed (click, not drag) and target is a <mark>, show popup
         if (!sel || sel.isCollapsed) {
             const markEl = target.closest("mark") as HTMLElement | null;
-            if (markEl) {
-                this.showPopup(evt, markEl, view);
-            }
+            if (markEl) this.showPopup(evt, markEl, view);
             return;
         }
 
-        // Otherwise, handle as highlight selection
+        this.handleSelection(sel, view);
+    }
+
+    // Mobile: touchend only handles tap-on-mark popup (not highlighting)
+    private handleTouchEnd(evt: TouchEvent) {
+        if (!this.settings.enabled) return;
+
+        const target = evt.target;
+        if (!(target instanceof HTMLElement)) return;
+        if (target.closest(".rh-popup")) return;
+
+        this.dismissPopup();
+
+        if (!target.closest(".markdown-preview-view")) return;
+
+        const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+        if (!view || view.getMode() !== "preview") return;
+
+        const sel = window.getSelection();
+        if (!sel || sel.isCollapsed) {
+            const markEl = target.closest("mark") as HTMLElement | null;
+            if (markEl) this.showPopup(evt, markEl, view);
+        }
+    }
+
+    // Mobile: fires after selection stabilizes (600ms debounce)
+    private handleSelectionChange() {
+        if (!this.settings.enabled) return;
+
+        const sel = window.getSelection();
+        if (!sel || sel.isCollapsed) return;
+
+        // Check that the selection anchor is inside a preview view
+        const anchor = sel.anchorNode;
+        if (!anchor) return;
+        const anchorEl = anchor.nodeType === Node.ELEMENT_NODE
+            ? anchor as HTMLElement
+            : anchor.parentElement;
+        if (!anchorEl || !anchorEl.closest(".markdown-preview-view")) return;
+
+        const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+        if (!view || view.getMode() !== "preview") return;
+
         this.handleSelection(sel, view);
     }
 

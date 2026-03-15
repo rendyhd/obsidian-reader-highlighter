@@ -308,26 +308,35 @@ var ReaderHighlighterPlugin = class extends import_obsidian.Plugin {
     this.settings = DEFAULT_SETTINGS;
     this.activePopup = null;
     this.dismissHandler = null;
+    this.selChangeTimer = null;
   }
   async onload() {
     await this.loadSettings();
     this.registerDomEvent(document, "mouseup", (evt) => {
-      this.handleInteraction(evt);
+      this.handleMouseUp(evt);
     });
     this.registerDomEvent(
       document,
       "touchend",
       (evt) => {
-        setTimeout(() => this.handleInteraction(evt), 400);
+        setTimeout(() => this.handleTouchEnd(evt), 100);
       },
       { passive: true }
     );
+    this.registerDomEvent(document, "selectionchange", () => {
+      if (this.selChangeTimer) clearTimeout(this.selChangeTimer);
+      this.selChangeTimer = setTimeout(() => {
+        this.handleSelectionChange();
+      }, 600);
+    });
     this.addSettingTab(new ReaderHighlighterSettingTab(this.app, this));
   }
   onunload() {
     this.dismissPopup();
+    if (this.selChangeTimer) clearTimeout(this.selChangeTimer);
   }
-  handleInteraction(evt) {
+  // Desktop: mouseup handles both highlight and mark-click popup
+  handleMouseUp(evt) {
     if (!this.settings.enabled) return;
     const target = evt.target;
     if (!(target instanceof HTMLElement)) return;
@@ -335,16 +344,42 @@ var ReaderHighlighterPlugin = class extends import_obsidian.Plugin {
     this.dismissPopup();
     if (!target.closest(".markdown-preview-view")) return;
     const view = this.app.workspace.getActiveViewOfType(import_obsidian.MarkdownView);
-    if (!view) return;
-    if (view.getMode() !== "preview") return;
+    if (!view || view.getMode() !== "preview") return;
     const sel = window.getSelection();
     if (!sel || sel.isCollapsed) {
       const markEl = target.closest("mark");
-      if (markEl) {
-        this.showPopup(evt, markEl, view);
-      }
+      if (markEl) this.showPopup(evt, markEl, view);
       return;
     }
+    this.handleSelection(sel, view);
+  }
+  // Mobile: touchend only handles tap-on-mark popup (not highlighting)
+  handleTouchEnd(evt) {
+    if (!this.settings.enabled) return;
+    const target = evt.target;
+    if (!(target instanceof HTMLElement)) return;
+    if (target.closest(".rh-popup")) return;
+    this.dismissPopup();
+    if (!target.closest(".markdown-preview-view")) return;
+    const view = this.app.workspace.getActiveViewOfType(import_obsidian.MarkdownView);
+    if (!view || view.getMode() !== "preview") return;
+    const sel = window.getSelection();
+    if (!sel || sel.isCollapsed) {
+      const markEl = target.closest("mark");
+      if (markEl) this.showPopup(evt, markEl, view);
+    }
+  }
+  // Mobile: fires after selection stabilizes (600ms debounce)
+  handleSelectionChange() {
+    if (!this.settings.enabled) return;
+    const sel = window.getSelection();
+    if (!sel || sel.isCollapsed) return;
+    const anchor = sel.anchorNode;
+    if (!anchor) return;
+    const anchorEl = anchor.nodeType === Node.ELEMENT_NODE ? anchor : anchor.parentElement;
+    if (!anchorEl || !anchorEl.closest(".markdown-preview-view")) return;
+    const view = this.app.workspace.getActiveViewOfType(import_obsidian.MarkdownView);
+    if (!view || view.getMode() !== "preview") return;
     this.handleSelection(sel, view);
   }
   handleSelection(sel, view) {
