@@ -1,0 +1,76 @@
+/* Reader Highlighter */
+
+@keyframes rh-flash {
+    0% { background-color: rgba(255, 208, 0, 0.6); }
+    100% { background-color: transparent; }
+}
+
+.rh-flash {
+    animation: rh-flash 0.4s ease-out;
+}
+
+/* Highlight remove popup */
+.rh-popup {
+    position: fixed;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    background: var(--background-secondary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 6px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    padding: 2px;
+    animation: rh-popup-in 0.12s ease-out;
+}
+
+@keyframes rh-popup-in {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.rh-popup-btn {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border: none;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--text-normal);
+    font-size: 13px;
+    cursor: pointer;
+    white-space: nowrap;
+    font-family: var(--font-interface);
+}
+
+.rh-popup-btn:hover {
+    background: var(--background-modifier-hover);
+}
+
+.rh-popup-btn:active {
+    background: var(--background-modifier-active-hover);
+}
+
+/* Mobile: larger touch target */
+@media (pointer: coarse) {
+    .rh-popup-btn {
+        padding: 8px 14px;
+        font-size: 15px;
+        min-height: 44px;
+    }
+}
+
+/* Arrow pointing down from popup */
+.rh-popup::after {
+    content: "";
+    position: absolute;
+    bottom: -5px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 10px;
+    height: 10px;
+    background: var(--background-secondary);
+    border-right: 1px solid var(--background-modifier-border);
+    border-bottom: 1px solid var(--background-modifier-border);
+    transform: translateX(-50%) rotate(45deg);
+}

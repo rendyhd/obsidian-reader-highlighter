@@ -1,0 +1,10 @@
+{
+    "id": "reader-highlighter",
+    "name": "Reader Highlighter",
+    "version": "1.0.0",
+    "minAppVersion": "1.0.0",
+    "description": "Select text in reading mode to instantly highlight it.",
+    "author": "rendyhd",
+    "authorUrl": "https://github.com/rendyhd",
+    "isDesktopOnly": false
+}

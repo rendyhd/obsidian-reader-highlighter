@@ -1,0 +1,19 @@
+{
+    "name": "obsidian-reader-highlighter",
+    "version": "1.0.0",
+    "description": "Select text in reading mode to instantly highlight it.",
+    "main": "main.js",
+    "scripts": {
+        "dev": "node esbuild.config.mjs",
+        "build": "node esbuild.config.mjs production"
+    },
+    "keywords": [],
+    "author": "wuxiaobai24",
+    "license": "MIT",
+    "devDependencies": {
+        "@types/node": "^22.13.0",
+        "esbuild": "0.25.0",
+        "obsidian": "latest",
+        "typescript": "5.8.2"
+    }
+}
